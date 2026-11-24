@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Settings</title>
+<link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar"></aside>
+    <div class="admin-main" style="max-width:640px;">
+      <h1 style="font-size:20px; font-weight:800; margin:0 0 4px;">Settings</h1>
+      <p class="text-sm muted mb-16">Your data source (this Google Sheet + Drive folder) is already connected — it's whatever account you deployed the Apps Script under.</p>
+
+      <p id="banner" class="text-sm hidden" style="padding:12px 14px; border-radius:12px; margin-bottom:16px;"></p>
+
+      <div class="card mb-16">
+        <h2 style="font-size:14px; margin:0 0 14px;">✦ Branding &amp; AI</h2>
+        <div class="field">
+          <label class="field-label">Clinic / brand name</label>
+          <input type="text" id="brandName" />
+        </div>
+        <div class="field">
+          <label class="field-label">OpenAI API key <span id="openaiBadge" class="badge badge-success hidden">configured</span></label>
+          <input type="password" id="openaiKey" placeholder="sk-..." />
+          <p class="text-xs muted mt-8">
+            Get one at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--brand);">platform.openai.com/api-keys</a>.
+            Needs access to a vision-capable model (gpt-4o).
+          </p>
+        </div>
+        <div class="field">
+          <label class="field-label">Model</label>
+          <input type="text" id="openaiModel" placeholder="gpt-4o" />
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary" id="saveGeneralBtn">Save</button>
+          <button class="btn btn-outline" id="testKeyBtn">🔑 Test key</button>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <h2 style="font-size:14px; margin:0 0 14px;">📁 Your data</h2>
+        <div class="flex gap-16" style="flex-wrap:wrap;">
+          <a id="sheetLink" href="#" target="_blank" class="btn btn-outline btn-sm hidden">📄 Open Leads Sheet</a>
+          <a id="driveLink" href="#" target="_blank" class="btn btn-outline btn-sm hidden">🗂️ Open Drive Folder</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:14px; margin:0 0 14px;">👤 Admin account</h2>
+        <div class="field">
+          <label class="field-label">Username</label>
+          <input type="text" id="newUsername" />
+        </div>
+        <div class="field">
+          <label class="field-label">New password (leave blank to keep current)</label>
+          <input type="password" id="newPassword" />
+        </div>
+        <div class="field">
+          <label class="field-label">Current password (required to change password)</label>
+          <input type="password" id="currentPassword" />
+        </div>
+        <button class="btn btn-primary" id="saveAccountBtn">Update account</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/admin-common.js"></script>
+  <script>
+    requireAdminAuth();
+    renderSidebar("settings");
+
+    function showBanner(type, text) {
+      const b = document.getElementById("banner");
+      b.textContent = text;
+      b.style.background = type === "success" ? "#dcfce7" : "#fee2e2";
+      b.style.color = type === "success" ? "#166534" : "#991b1b";
+      b.classList.remove("hidden");
+    }
+
+    async function load() {
+      const d = await callAdminApi("getSettings", {});
+      const s = d.settings;
+      document.getElementById("brandName").value = s.brandName;
+      document.getElementById("openaiModel").value = s.openaiModel || "gpt-4o";
+      document.getElementById("newUsername").value = s.adminUsername;
+      if (s.openaiConfigured) document.getElementById("openaiBadge").classList.remove("hidden");
+      if (s.spreadsheetUrl) {
+        document.getElementById("sheetLink").href = s.spreadsheetUrl;
+        document.getElementById("sheetLink").classList.remove("hidden");
+      }
+      if (s.driveFolderUrl) {
+        document.getElementById("driveLink").href = s.driveFolderUrl;
+        document.getElementById("driveLink").classList.remove("hidden");
+      }
+    }
+
+    document.getElementById("saveGeneralBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("saveGeneralBtn");
+      btn.disabled = true;
+      try {
+        await callAdminApi("saveSettings", {
+          brandName: document.getElementById("brandName").value,
+          openaiApiKey: document.getElementById("openaiKey").value,
+          openaiModel: document.getElementById("openaiModel").value,
+        });
+        document.getElementById("openaiKey").value = "";
+        showBanner("success", "Saved.");
+        load();
+      } catch (err) {
+        showBanner("error", err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("testKeyBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("testKeyBtn");
+      btn.disabled = true;
+      const orig = btn.textContent;
+      btn.textContent = "Testing…";
+      try {
+        const key = document.getElementById("openaiKey").value;
+        const d = await callAdminApi("testOpenAIKey", { openaiApiKey: key });
+        showBanner(d.ok ? "success" : "error", d.ok ? "OpenAI key works!" : d.error || "That key didn't work.");
+      } catch (err) {
+        showBanner("error", err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+      }
+    });
+
+    document.getElementById("saveAccountBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("saveAccountBtn");
+      btn.disabled = true;
+      try {
+        const d = await callAdminApi("changeAdminAccount", {
+          newUsername: document.getElementById("newUsername").value,
+          newPassword: document.getElementById("newPassword").value,
+          currentPassword: document.getElementById("currentPassword").value,
+        });
+        if (d.errors && d.errors.length) {
+          showBanner("error", d.errors.join(" "));
+        } else {
+          showBanner("success", "Account settings updated.");
+          document.getElementById("newPassword").value = "";
+          document.getElementById("currentPassword").value = "";
+        }
+      } catch (err) {
+        showBanner("error", err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    load().catch((err) => showBanner("error", err.message));
+  </script>
+</body>
+</html>

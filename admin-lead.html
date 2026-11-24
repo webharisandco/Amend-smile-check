@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lead · Amend AI Smile Check</title>
+<link rel="icon" href="assets/img/amend-mark.png" />
+<link rel="stylesheet" href="assets/css/styles.css" />
+<style>
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stage-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+  .stage-btn { border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .stage-btn.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .photos a { aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #f2f2f7; display: block; }
+  .photos img { width: 100%; height: 100%; object-fit: cover; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f2f2f7; font-size: 13.5px; }
+  .kv:last-child { border-bottom: none; }
+  .kv span:first-child { color: var(--muted); }
+  .kv span:last-child { font-weight: 600; text-align: right; }
+  .att { padding: 11px 0; border-bottom: 1px solid #f2f2f7; }
+  .att:last-child { border-bottom: none; }
+  h2.h { font-size: 16px; margin: 0 0 12px; }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar"></aside>
+    <div class="admin-main">
+      <a href="admin-dashboard.html" class="text-sm muted" style="text-decoration:none;">← Dashboard</a>
+      <div id="leadRoot" class="mt-16"><p class="muted">Loading lead…</p></div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/admin-common.js"></script>
+  <script src="assets/js/alignment-diagram.js"></script>
+  <script>
+    requireAdminAuth();
+    renderSidebar("dashboard");
+    const CATS = [["alignment","Alignment"],["decayCavities","Cavity check"],["gumHealth","Gum health"],["enamelWear","Enamel"],["stainingColor","Shade"]];
+    const URG = { routine: "badge-brand", soon: "badge-orange", priority: "badge-danger" };
+    const col = (s) => s >= 80 ? "var(--success)" : s >= 65 ? "var(--navy)" : s >= 45 ? "var(--orange)" : "var(--danger)";
+    const leadId = new URLSearchParams(location.search).get("id");
+
+    function render(lead) {
+      const a = lead.analysis || {}, cats = a.categories || {}, d = a.alignmentDetail;
+      const t = TEMP_META[lead.temperature] || TEMP_META.cold;
+      const photos = (lead.photoUrls || []).map(normalizePhotoUrl);
+      const report = reportLink(lead);
+      const aligner = d && d.alignerCandidate;
+
+      document.getElementById("leadRoot").innerHTML = `
+        <div class="flex justify-between items-start" style="flex-wrap:wrap; gap:14px; margin-bottom:18px;">
+          <div>
+            <div class="flex items-center gap-8" style="flex-wrap:wrap;">
+              <h1 style="font-size:28px; margin:0;">${esc(lead.name || "Anonymous")}</h1>
+              <span class="badge ${t.cls}">${t.icon} ${t.label} · ${lead.riskScore}</span>
+              ${aligner ? '<span class="badge badge-orange">Aligner candidate</span>' : ""}
+            </div>
+            <p class="text-sm muted" style="margin:4px 0 0;">Took the test ${new Date(lead.timestamp).toLocaleString()} · via ${esc(lead.refSource || "direct")}</p>
+          </div>
+          <div class="actions">
+            ${lead.phone ? `<a class="btn btn-whatsapp" href="${waLink(lead)}" target="_blank" rel="noopener" data-contact>💬 WhatsApp + report</a>
+                            <a class="btn btn-outline" href="tel:${esc(lead.phone)}" data-contact>📞 Call</a>` : ""}
+            ${lead.email ? `<a class="btn btn-outline" href="mailto:${esc(lead.email)}" data-contact>✉️ Email</a>` : ""}
+            <a class="btn btn-outline" href="${report}" target="_blank" rel="noopener">📄 Patient report</a>
+            <button class="btn btn-ghost" id="copyReport">Copy report link</button>
+          </div>
+        </div>
+
+        <div class="layout">
+          <div class="flex-col gap-16" style="display:flex;">
+            ${a.staffNote ? `<div class="card" style="background:var(--orange-soft); border-color:#fde2c0;">
+              <div class="eyebrow">Consultation angle · internal</div>
+              <p style="margin:6px 0 0; font-size:15px; line-height:1.6;">${esc(a.staffNote)}</p></div>` : ""}
+
+            <div class="card"><h2 class="h">AI summary (as shown to patient)</h2>
+              <p style="margin:0; line-height:1.65;">${esc(a.patientSummary || (cats.alignment && cats.alignment.summary) || "—")}</p></div>
+
+            <div class="card"><h2 class="h">Scores</h2>
+              ${CATS.map(([k, lbl]) => { const c = cats[k] || { score: 0, summary: "" }; return `
+                <div class="score-row"><div class="score-row-head"><span style="font-weight:600;">${lbl}</span><b style="color:${col(c.score)}">${c.score}</b></div>
+                <div class="score-bar-track"><div class="score-bar-fill" style="width:${c.score}%; background:${col(c.score)}"></div></div>
+                <div class="score-summary">${esc(c.summary)}</div></div>`; }).join("")}</div>
+
+            <div class="grid-2">
+              <div class="card"><h2 class="h">Attention areas</h2>
+                ${(a.attentionAreas || []).length ? a.attentionAreas.map((x) => `<div class="att">
+                  <div class="flex justify-between gap-8"><b class="text-sm">${esc(x.title)}</b><span class="badge ${URG[x.urgency] || "badge-brand"}">${esc(x.urgency)}</span></div>
+                  ${x.location ? `<div class="text-xs muted">📍 ${esc(x.location)}</div>` : ""}<div class="text-sm muted">${esc(x.detail)}</div></div>`).join("")
+                  : (a.detectedIssues || []).map((i) => `<div class="att text-sm">${esc(i)}</div>`).join("") || '<p class="text-sm muted">None flagged.</p>'}
+              </div>
+              <div class="card"><h2 class="h">Treatment opportunities</h2>
+                ${(a.recommendedTreatments || []).length ? a.recommendedTreatments.map((r) => `<div class="att">
+                  <div class="flex justify-between gap-8"><b class="text-sm">${esc(r.service)}</b><span class="badge ${r.fit === "strong" ? "badge-orange" : "badge-neutral"}">${esc(r.fit)}</span></div>
+                  <div class="text-sm muted">${esc(r.reason)}</div></div>`).join("")
+                  : (a.recommendedProductTags || []).map((i) => `<span class="badge badge-brand" style="margin:0 6px 6px 0;">${esc(i)}</span>`).join("") || '<p class="text-sm muted">—</p>'}
+              </div>
+            </div>
+
+            ${d ? `<div class="card"><h2 class="h">Alignment map</h2>${buildAlignmentDiagramSvg(d)}${alignmentDiagramLegendHtml()}
+              ${d.biteNote ? `<p class="text-xs muted center" style="margin-top:10px;">${esc(d.biteNote)}</p>` : ""}
+              ${aligner ? `<p class="text-sm" style="background:var(--orange-soft); border-radius:12px; padding:10px 12px; margin:12px 0 0;"><b>Aligner fit:</b> ${esc(d.alignerNote)}</p>` : ""}</div>` : ""}
+            ${a.rootCanalRiskFlag ? `<div class="card" style="background:var(--danger-bg); border-color:#f7c9c4;"><b>Root canal risk flagged</b><p class="text-sm" style="margin:4px 0 0;">${esc(a.rootCanalRiskNote)}</p></div>` : ""}
+          </div>
+
+          <div class="flex-col gap-16" style="display:flex;">
+            <div class="card"><h2 class="h">Stage</h2>
+              <div class="stage-bar" id="stageBar">${STATUSES.map((s) => `<button class="stage-btn ${s.key === (lead.status || "new") ? "on" : ""}" data-s="${s.key}">${s.label}</button>`).join("")}</div>
+              <label class="field-label mt-16">Notes</label>
+              <textarea id="notes" rows="4" placeholder="Call outcome, preferred branch, follow-up date…">${esc(lead.notes || "")}</textarea>
+              <button class="btn btn-primary btn-sm mt-8" id="saveNotes">Save notes</button> <span class="text-xs" id="saved" style="color:var(--success);"></span>
+            </div>
+
+            <div class="card" style="text-align:center;">
+              <div class="gauge-value" style="color:${col(lead.oralHealthScore)}">${lead.oralHealthScore}</div>
+              <div class="gauge-max">Oral health score / 100</div>
+            </div>
+
+            ${photos.length ? `<div class="card"><h2 class="h">Photos</h2><div class="photos">${photos.map((u) =>
+              `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="" referrerpolicy="no-referrer"></a>`).join("")}</div></div>` : ""}
+
+            <div class="card"><h2 class="h">Contact</h2>
+              <div class="kv"><span>Phone</span><span>${esc(lead.phone || "—")}</span></div>
+              <div class="kv"><span>Email</span><span>${esc(lead.email || "—")}</span></div>
+              <div class="kv"><span>Lead ID</span><span>${esc(lead.leadId)}</span></div></div>
+
+            <div class="card"><h2 class="h">Self-reported answers</h2>
+              ${(lead.assessmentAnswers || []).map((x) => `<div class="kv"><span>${esc(x.text || x.questionId)}</span><span>${esc(x.value)}</span></div>`).join("") || '<p class="text-sm muted">None.</p>'}</div>
+          </div>
+        </div>`;
+
+      document.getElementById("copyReport").addEventListener("click", (e) => {
+        navigator.clipboard.writeText(report); e.target.textContent = "✓ Copied";
+        setTimeout(() => (e.target.textContent = "Copy report link"), 1500);
+      });
+      document.querySelectorAll(".stage-btn").forEach((b) => b.addEventListener("click", async () => {
+        const prev = lead.status;
+        lead.status = b.dataset.s;
+        document.querySelectorAll(".stage-btn").forEach((x) => x.classList.toggle("on", x === b));
+        try { await setLeadStatus(lead.leadId, lead.status); } catch (err) { alert(err.message); lead.status = prev; render(lead); }
+      }));
+      document.getElementById("saveNotes").addEventListener("click", async () => {
+        await callAdminApi("updateLead", { leadId: lead.leadId, updates: { notes: document.getElementById("notes").value } });
+        document.getElementById("saved").textContent = "Saved ✓";
+        setTimeout(() => (document.getElementById("saved").textContent = ""), 2000);
+      });
+      document.querySelectorAll("[data-contact]").forEach((el) => el.addEventListener("click", () => {
+        if ((lead.status || "new") === "new") {
+          lead.status = "contacted";
+          setLeadStatus(lead.leadId, "contacted").catch(() => {});
+          document.querySelectorAll(".stage-btn").forEach((x) => x.classList.toggle("on", x.dataset.s === "contacted"));
+        }
+      }));
+    }
+
+    const notFound = (msg) => (document.getElementById("leadRoot").innerHTML =
+      `<div class="card center" style="padding:50px;"><h2 style="margin:0 0 6px;">Lead not available</h2><p class="muted">${esc(msg)}</p>
+       <a class="btn btn-primary mt-16" href="admin-dashboard.html">Back to dashboard</a></div>`);
+
+    if (!leadId) notFound("No lead ID in the link.");
+    else callAdminApi("getLeads", {}).then((d) => {
+      const lead = (d.leads || []).find((l) => String(l.leadId) === String(leadId));
+      lead ? render(lead) : notFound("This lead may have been deleted from the Google Sheet.");
+    }).catch((err) => notFound(err.message));
+  </script>
+</body>
+</html>

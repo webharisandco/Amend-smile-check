@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard · Amend AI Smile Check</title>
+<link rel="icon" href="assets/img/amend-mark.png" />
+<link rel="stylesheet" href="assets/css/styles.css" />
+<style>
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .head h1 { font-size: 28px; margin: 0; }
+  #kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .queue { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .q-card { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .q-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .q-name { font-weight: 600; font-size: 15px; text-decoration: none; color: var(--ink); }
+  .q-name:hover { color: var(--navy); }
+  .q-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .funnel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .fstep { border-radius: 16px; padding: 14px; background: #f5f5f7; cursor: pointer; border: 2px solid transparent; transition: border-color .15s; }
+  .fstep:hover, .fstep.active { border-color: var(--navy); }
+  .fstep b { font-size: 24px; display: block; letter-spacing: -0.02em; }
+  .fstep span { font-size: 12px; color: var(--muted); }
+  .bars .row { display: grid; grid-template-columns: 150px 1fr 34px; gap: 10px; align-items: center; font-size: 13px; margin-bottom: 9px; }
+  .bars .track { height: 10px; background: #f0f0f3; border-radius: 999px; overflow: hidden; }
+  .bars .fill { height: 100%; border-radius: 999px; background: var(--navy); }
+  .spark-bars { display: flex; align-items: flex-end; gap: 4px; height: 110px; }
+  .spark-bars div { flex: 1; background: var(--navy-soft); border-radius: 6px 6px 2px 2px; position: relative; min-height: 3px; }
+  .spark-bars div.today { background: var(--orange); }
+  .spark-bars div:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 6px; white-space: nowrap; margin-bottom: 4px; }
+  .lead-link { font-weight: 600; color: var(--ink); text-decoration: none; }
+  .lead-link:hover { color: var(--navy); text-decoration: underline; }
+  select.status-select { width: auto; padding: 5px 8px; font-size: 12px; border-radius: 999px; }
+  .icon-btn { border: 1px solid var(--border); background: #fff; width: 30px; height: 30px; border-radius: 999px; display: inline-flex;
+    align-items: center; justify-content: center; text-decoration: none; font-size: 14px; }
+  .icon-btn:hover { background: #f5f5f7; }
+  @media (max-width: 900px) { .funnel { grid-template-columns: repeat(2, 1fr); } .bars .row { grid-template-columns: 110px 1fr 30px; } }
+</style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar"></aside>
+    <div class="admin-main">
+      <div class="head">
+        <div>
+          <div class="eyebrow" id="todayLabel"></div>
+          <h1>Lead dashboard</h1>
+        </div>
+        <div class="flex gap-8" style="flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" id="copyTestBtn">🔗 Copy test link</button>
+          <a id="openSheetLink" href="#" target="_blank" rel="noopener" class="btn btn-outline btn-sm hidden">📄 Google Sheet</a>
+          <button class="btn btn-outline btn-sm" id="exportBtn">⬇ Export CSV</button>
+          <button class="btn btn-primary btn-sm" id="refreshBtn">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div id="setupWarning" class="card hidden mb-16" style="background:var(--orange-soft); border-color:#fde2c0;">
+        <p class="text-sm" style="margin:0;"><strong>Finish setup:</strong> <span id="setupWarningText"></span> <a href="admin-settings.html">Open Settings →</a></p>
+      </div>
+
+      <div class="stat-grid" id="kpis"></div>
+
+      <div class="card mb-16">
+        <div class="flex justify-between items-center mb-16" style="flex-wrap:wrap; gap:8px;">
+          <div><h2 style="font-size:18px; margin:0;">Contact these first</h2>
+            <p class="text-sm muted" style="margin:2px 0 0;">Hot leads and aligner candidates you haven't reached yet — ranked by opportunity.</p></div>
+          <span class="badge badge-danger" id="queueCount"></span>
+        </div>
+        <div class="queue" id="queue"></div>
+      </div>
+
+      <div class="card mb-16">
+        <h2 style="font-size:18px; margin:0 0 4px;">Pipeline</h2>
+        <p class="text-sm muted" style="margin:0 0 14px;">Click a stage to filter the table below.</p>
+        <div class="funnel" id="funnel"></div>
+      </div>
+
+      <div class="grid-3 mb-16">
+        <div class="card"><h3 style="font-size:15px; margin:0 0 14px;">Tests · last 14 days</h3><div class="spark-bars" id="daily"></div>
+          <div class="flex justify-between text-xs muted mt-8"><span id="dailyStart"></span><span>Today</span></div></div>
+        <div class="card"><h3 style="font-size:15px; margin:0 0 14px;">Treatment opportunities</h3><div class="bars" id="treatBars"></div></div>
+        <div class="card"><h3 style="font-size:15px; margin:0 0 14px;">Lead sources</h3><div class="bars" id="sourceBars"></div></div>
+      </div>
+
+      <div class="card" style="padding:0;">
+        <div class="table-toolbar">
+          <input type="text" id="searchInput" placeholder="Search name, phone, email…" style="min-width:200px; flex:1; max-width:280px;" />
+          <select id="tempFilter"><option value="all">All temperatures</option><option value="hot">🔥 Hot</option><option value="warm">Warm</option><option value="cold">Cold</option></select>
+          <select id="statusFilter"><option value="all">All stages</option></select>
+          <label class="text-sm flex items-center gap-8" style="white-space:nowrap;"><input type="checkbox" id="alignerOnly"> Aligner candidates</label>
+          <select id="sortKey"><option value="recent">Newest first</option><option value="risk">Highest opportunity</option><option value="score">Lowest oral score</option></select>
+          <div class="spacer"></div>
+          <span class="text-xs muted" id="resultCount"></span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Lead</th><th>Score</th><th>Heat</th><th>Opportunity</th><th>Source</th><th>Stage</th><th>Date</th><th></th></tr></thead>
+            <tbody id="leadsBody"><tr><td colspan="8" class="center muted" style="padding:40px;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/admin-common.js"></script>
+  <script>
+    requireAdminAuth();
+    renderSidebar("dashboard");
+
+    let allLeads = [];
+    const $ = (id) => document.getElementById(id);
+    STATUSES.forEach((s) => $("statusFilter").insertAdjacentHTML("beforeend", `<option value="${s.key}">${s.label}</option>`));
+    const hour = new Date().getHours();
+    $("todayLabel").textContent = (hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening") + " · " +
+      new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+
+    const isAligner = (l) => !!(l.analysis && l.analysis.alignmentDetail && l.analysis.alignmentDetail.alignerCandidate);
+    const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
+
+    function kpi(label, value, sub, color) {
+      return `<div class="card stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="color:${color || "var(--ink)"}">${value}</div>${sub ? `<div class="stat-sub">${sub}</div>` : ""}</div>`;
+    }
+
+    function renderKpis() {
+      const L = allLeads, n = L.length;
+      const today = dayKey(new Date());
+      const weekAgo = Date.now() - 7 * 864e5;
+      const todayN = L.filter((l) => l.timestamp && dayKey(l.timestamp) === today).length;
+      const weekN = L.filter((l) => new Date(l.timestamp).getTime() >= weekAgo).length;
+      const hotOpen = L.filter((l) => l.temperature === "hot" && l.status === "new").length;
+      const aligner = L.filter(isAligner).length;
+      const reached = L.filter((l) => ["contacted", "booked", "converted"].includes(l.status)).length;
+      const won = L.filter((l) => ["booked", "converted"].includes(l.status)).length;
+      const avg = n ? Math.round(L.reduce((s, l) => s + (l.oralHealthScore || 0), 0) / n) : "—";
+      $("kpis").innerHTML =
+        kpi("Tests taken", n, `${todayN} today · ${weekN} this week`) +
+        kpi("Hot & uncontacted", hotOpen, "Act on these today", hotOpen ? "var(--danger)" : null) +
+        kpi("Aligner candidates", aligner, n ? `${Math.round((aligner / n) * 100)}% of all tests` : "", "var(--orange)") +
+        kpi("Contact rate", n ? Math.round((reached / n) * 100) + "%" : "—", `${reached} of ${n} reached`) +
+        kpi("Booked + converted", won, n ? `${Math.round((won / n) * 100)}% of tests` : "", "var(--success)") +
+        kpi("Avg oral score", avg, "Across all tests", "var(--navy)");
+    }
+
+    function renderQueue() {
+      const q = allLeads.filter((l) => l.status === "new" && (l.temperature === "hot" || isAligner(l)))
+        .sort((a, b) => b.riskScore - a.riskScore);
+      $("queueCount").textContent = q.length + " waiting";
+      if (!q.length) { $("queue").innerHTML = '<p class="text-sm muted">🎉 You\'re all caught up — no hot leads waiting.</p>'; return; }
+      $("queue").innerHTML = q.slice(0, 9).map((l) => {
+        const t = TEMP_META[l.temperature] || TEMP_META.cold;
+        return `<div class="card q-card" style="box-shadow:none; background:#fafafc;">
+          <div class="q-top">
+            <div><a class="q-name" href="admin-lead.html?id=${encodeURIComponent(l.leadId)}">${esc(l.name || "Anonymous")}</a>
+              <div class="text-xs muted">${esc(l.phone || l.email || "")} · ${fmtDate(l.timestamp)}</div></div>
+            <span class="badge ${t.cls}">${t.icon} ${l.riskScore}</span>
+          </div>
+          <div class="text-sm"><span class="badge ${isAligner(l) ? "badge-orange" : "badge-brand"}">${esc(leadHook(l))}</span>
+            <span class="text-xs muted" style="margin-left:6px;">Score ${l.oralHealthScore}/100</span></div>
+          <div class="q-actions">
+            ${l.phone ? `<a class="btn btn-whatsapp btn-sm" href="${waLink(l)}" target="_blank" rel="noopener" data-contact="${l.leadId}">WhatsApp</a>
+                         <a class="btn btn-outline btn-sm" href="tel:${esc(l.phone)}" data-contact="${l.leadId}">Call</a>` : ""}
+            <a class="btn btn-ghost btn-sm" href="admin-lead.html?id=${encodeURIComponent(l.leadId)}">Open →</a>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    function renderFunnel() {
+      const n = allLeads.length || 1;
+      $("funnel").innerHTML = STATUSES.map((s) => {
+        const c = allLeads.filter((l) => (l.status || "new") === s.key).length;
+        return `<div class="fstep ${$("statusFilter").value === s.key ? "active" : ""}" data-status="${s.key}">
+          <span class="badge ${s.cls}">${s.label}</span><b style="margin-top:8px;">${c}</b><span>${Math.round((c / n) * 100)}%</span></div>`;
+      }).join("");
+      document.querySelectorAll(".fstep").forEach((el) => el.addEventListener("click", () => {
+        $("statusFilter").value = $("statusFilter").value === el.dataset.status ? "all" : el.dataset.status;
+        renderFunnel(); renderTable();
+      }));
+    }
+
+    function bars(targetId, entries, color) {
+      const max = Math.max(1, ...entries.map((e) => e[1]));
+      $(targetId).innerHTML = entries.length ? entries.map(([k, v]) =>
+        `<div class="row"><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(k)}">${esc(k)}</span>
+         <div class="track"><div class="fill" style="width:${(v / max) * 100}%; background:${color};"></div></div><b>${v}</b></div>`).join("")
+        : '<p class="text-sm muted">No data yet.</p>';
+    }
+
+    function renderCharts() {
+      const days = [...Array(14)].map((_, i) => dayKey(Date.now() - (13 - i) * 864e5));
+      const counts = days.map((d) => allLeads.filter((l) => l.timestamp && dayKey(l.timestamp) === d).length);
+      const max = Math.max(1, ...counts);
+      $("daily").innerHTML = counts.map((c, i) => `<div class="${i === 13 ? "today" : ""}" style="height:${(c / max) * 100}%" data-tip="${new Date(days[i]).toLocaleDateString(undefined,{day:"numeric",month:"short"})}: ${c}"></div>`).join("");
+      $("dailyStart").textContent = new Date(days[0]).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+      const t = {};
+      allLeads.forEach((l) => ((l.analysis || {}).recommendedTreatments || []).forEach((r) => {
+        if (r.service !== "Routine Check-up") t[r.service] = (t[r.service] || 0) + 1;
+      }));
+      bars("treatBars", Object.entries(t).sort((a, b) => b[1] - a[1]).slice(0, 6), "var(--orange)");
+
+      const s = {};
+      allLeads.forEach((l) => { const k = l.refSource || "direct"; s[k] = (s[k] || 0) + 1; });
+      bars("sourceBars", Object.entries(s).sort((a, b) => b[1] - a[1]).slice(0, 6), "var(--navy)");
+    }
+
+    function filtered() {
+      const q = $("searchInput").value.trim().toLowerCase();
+      const temp = $("tempFilter").value, status = $("statusFilter").value, alignerOnly = $("alignerOnly").checked;
+      let list = allLeads.filter((l) =>
+        (temp === "all" || l.temperature === temp) && (status === "all" || (l.status || "new") === status) &&
+        (!alignerOnly || isAligner(l)) && (!q || `${l.name} ${l.phone} ${l.email}`.toLowerCase().includes(q)));
+      const k = $("sortKey").value;
+      if (k === "recent") list.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+      if (k === "risk") list.sort((a, b) => b.riskScore - a.riskScore);
+      if (k === "score") list.sort((a, b) => a.oralHealthScore - b.oralHealthScore);
+      return list;
+    }
+
+    function renderTable() {
+      const list = filtered();
+      $("resultCount").textContent = `${list.length} of ${allLeads.length}`;
+      if (!list.length) { $("leadsBody").innerHTML = '<tr><td colspan="8" class="center muted" style="padding:40px;">No leads match these filters.</td></tr>'; return; }
+      $("leadsBody").innerHTML = list.map((l) => {
+        const t = TEMP_META[l.temperature] || TEMP_META.cold;
+        const href = `admin-lead.html?id=${encodeURIComponent(l.leadId)}`;
+        return `<tr>
+          <td><a class="lead-link" href="${href}">${esc(l.name || "Anonymous")}</a><div class="text-xs muted">${esc(l.phone || l.email || "No contact")}</div></td>
+          <td><b style="color:${l.oralHealthScore >= 65 ? "var(--navy)" : l.oralHealthScore >= 45 ? "var(--orange)" : "var(--danger)"}">${l.oralHealthScore}</b></td>
+          <td><span class="badge ${t.cls}">${t.icon} ${t.label}</span></td>
+          <td><span class="badge ${isAligner(l) ? "badge-orange" : "badge-neutral"}">${esc(leadHook(l))}</span></td>
+          <td class="text-xs muted">${esc(l.refSource || "direct")}</td>
+          <td><select class="status-select" data-id="${l.leadId}">${STATUSES.map((s) => `<option value="${s.key}" ${s.key === (l.status || "new") ? "selected" : ""}>${s.label}</option>`).join("")}</select></td>
+          <td class="text-xs muted" style="white-space:nowrap;">${fmtDate(l.timestamp)}</td>
+          <td style="white-space:nowrap;">
+            ${l.phone ? `<a class="icon-btn" title="WhatsApp" href="${waLink(l)}" target="_blank" rel="noopener">💬</a>` : ""}
+            <a class="icon-btn" title="Patient report" href="${reportLink(l)}" target="_blank" rel="noopener">📄</a>
+            <a class="icon-btn" title="Open lead" href="${href}">→</a>
+          </td></tr>`;
+      }).join("");
+      document.querySelectorAll(".status-select").forEach((sel) => sel.addEventListener("change", async () => {
+        const lead = allLeads.find((x) => x.leadId === sel.dataset.id);
+        sel.disabled = true;
+        try { await setLeadStatus(lead.leadId, sel.value); lead.status = sel.value; renderAllButTable(); }
+        catch (e) { alert(e.message); sel.value = lead.status; }
+        finally { sel.disabled = false; }
+      }));
+    }
+
+    function renderAllButTable() { renderKpis(); renderQueue(); renderFunnel(); renderCharts(); }
+
+    // Contacting from the queue auto-moves the lead to "Contacted".
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-contact]");
+      if (!a) return;
+      const lead = allLeads.find((x) => x.leadId === a.dataset.contact);
+      if (lead && lead.status === "new") {
+        lead.status = "contacted";
+        setLeadStatus(lead.leadId, "contacted").catch(() => {});
+        setTimeout(() => { renderAllButTable(); renderTable(); }, 300);
+      }
+    });
+
+    function exportCsv() {
+      const rows = [["Date", "Name", "Phone", "Email", "Source", "Oral score", "Heat", "Risk", "Aligner candidate", "Opportunity", "Stage", "Report link", "Notes"]];
+      filtered().forEach((l) => rows.push([l.timestamp, l.name, l.phone, l.email, l.refSource, l.oralHealthScore, l.temperature,
+        l.riskScore, isAligner(l) ? "Yes" : "No", leadHook(l), l.status, reportLink(l), l.notes]));
+      const csv = rows.map((r) => r.map((v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      a.download = `amend-leads-${dayKey(new Date())}.csv`;
+      a.click();
+    }
+
+    async function load() {
+      $("leadsBody").innerHTML = '<tr><td colspan="8" class="center muted" style="padding:40px;">Loading…</td></tr>';
+      const [leadsResp, settingsResp] = await Promise.all([callAdminApi("getLeads", {}), callAdminApi("getSettings", {})]);
+      allLeads = (leadsResp.leads || []).map((l) => Object.assign({ status: "new" }, l, { status: l.status || "new" }));
+      renderAllButTable(); renderTable();
+      const s = settingsResp.settings || {};
+      if (s.spreadsheetUrl) { $("openSheetLink").href = s.spreadsheetUrl; $("openSheetLink").classList.remove("hidden"); }
+      if (!s.openaiConfigured) { $("setupWarning").classList.remove("hidden"); $("setupWarningText").textContent = "add your OpenAI API key."; }
+    }
+
+    ["searchInput", "tempFilter", "sortKey", "alignerOnly"].forEach((id) => $(id).addEventListener("input", renderTable));
+    $("statusFilter").addEventListener("input", () => { renderFunnel(); renderTable(); });
+    $("refreshBtn").addEventListener("click", () => load().catch((e) => alert(e.message)));
+    $("exportBtn").addEventListener("click", exportCsv);
+    $("copyTestBtn").addEventListener("click", () => {
+      navigator.clipboard.writeText(siteBase() + "test.html");
+      $("copyTestBtn").textContent = "✓ Copied";
+      setTimeout(() => ($("copyTestBtn").textContent = "🔗 Copy test link"), 1500);
+    });
+
+    load().catch((err) => { $("leadsBody").innerHTML = `<tr><td colspan="8" class="center" style="padding:40px; color:var(--danger);">${esc(err.message)}</td></tr>`; });
+  </script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Smile Check · Amend Dental Centre</title>
+<link rel="icon" href="assets/img/amend-mark.png" />
+<link rel="stylesheet" href="assets/css/styles.css" />
+<style>
+  .step { display: none; }
+  .step.active { display: block; animation: fadeUp .45s cubic-bezier(.22,1,.36,1) both; }
+  .step-title { font-size: 28px; font-weight: 700; margin: 6px 0 6px; text-align: center; }
+  .step-sub { text-align: center; color: var(--muted); margin: 0 0 28px; font-size: 15px; }
+  .slot-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.85); font-size: 12px; color: var(--muted); gap: 8px; }
+  .mini-spinner { width: 22px; height: 22px; border-radius: 999px; border: 3px solid var(--border); border-top-color: var(--orange); }
+  .error-box { color: var(--danger); font-size: 14px; margin-top: 14px; text-align: center; display: none; }
+  .bg-status { display: flex; align-items: center; gap: 10px; background: var(--navy-soft); color: var(--navy); border-radius: 14px;
+    padding: 11px 14px; font-size: 13.5px; margin-bottom: 20px; }
+  .bg-status.done { background: var(--success-bg); color: var(--success); }
+  .bg-status.fail { background: var(--danger-bg); color: var(--danger); }
+  .progress-track { height: 8px; border-radius: 999px; background: #e5e5ea; overflow: hidden; max-width: 360px; margin: 26px auto 14px; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--orange), #f7b04f); border-radius: 999px; transition: width .8s ease; }
+  .keep-open { display: inline-flex; gap: 8px; align-items: center; background: var(--orange-soft); color: #9a5608;
+    padding: 9px 14px; border-radius: 12px; font-size: 13px; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <a id="logoLink" href="#" target="_blank" rel="noopener"><img class="logo" src="assets/img/amend-logo.png" alt="Amend Dental Centre"></a>
+      <div class="spacer"></div>
+      <span class="text-xs muted" id="stepHint">Step 1 of 3</span>
+    </header>
+
+    <main class="container">
+      <!-- STEP 1: photos -->
+      <section class="step active" id="step-photos">
+        <div class="center"><span class="eyebrow">Step 1 · Photos</span></div>
+        <h1 class="step-title">Add 3 photos of your teeth</h1>
+        <p class="step-sub">Take new photos or choose from your gallery. Good light and a close-up angle give the most accurate results.</p>
+        <div class="photo-grid" id="photoGrid"></div>
+        <div class="center" style="margin-top:28px;">
+          <button class="btn btn-orange btn-lg" id="photosNextBtn" disabled>Continue →</button>
+        </div>
+        <p id="photoError" class="error-box"></p>
+      </section>
+
+      <!-- STEP 2: questions -->
+      <section class="step" id="step-quiz">
+        <div class="center"><span class="eyebrow">Step 2 · A few quick questions</span></div>
+        <div style="max-width:520px; margin:18px auto 0;">
+          <div class="flex justify-between text-xs muted mb-8"><span id="quizProgressText"></span><span id="quizProgressPct"></span></div>
+          <div class="quiz-progress-track"><div class="quiz-progress-fill" id="quizProgressFill" style="width:0%;"></div></div>
+          <h3 id="quizQuestionText" style="font-size:19px; font-weight:700; margin:24px 0 18px;"></h3>
+          <div id="quizOptions"></div>
+          <div class="center" style="margin-top:20px;">
+            <button class="btn btn-primary btn-lg" id="quizNextBtn" disabled>Next</button>
+            <div><button class="btn btn-ghost btn-sm mt-8 hidden" id="quizSkipBtn">Skip this question</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: contact (analysis runs in the background meanwhile) -->
+      <section class="step" id="step-contact">
+        <div style="max-width:380px; margin:0 auto;">
+          <div class="center"><span class="eyebrow">Step 3 · Your details</span></div>
+          <h1 class="step-title">Almost there</h1>
+          <p class="step-sub">Enter your details to unlock your personal Smile Report.</p>
+          <div class="bg-status" id="bgStatus"><div class="mini-spinner spin"></div><span id="bgStatusText">Our AI is analysing your photos…</span></div>
+          <div class="field"><label class="field-label">Full name</label><input type="text" id="nameInput" placeholder="Your name" autocomplete="name" /></div>
+          <div class="field"><label class="field-label">Phone (WhatsApp)</label><input type="tel" id="phoneInput" placeholder="+91 98765 43210" autocomplete="tel" /></div>
+          <div class="field"><label class="field-label">Email (optional)</label><input type="email" id="emailInput" placeholder="you@email.com" autocomplete="email" /></div>
+          <p id="contactError" class="error-box" style="text-align:left;"></p>
+          <button class="btn btn-orange btn-lg btn-block mt-8" id="submitBtn" disabled>See my Smile Report →</button>
+          <p class="text-xs muted center mt-8">By continuing you agree to be contacted by Amend Dental Centre about your results and free consultation. Your report is AI-generated and not a medical diagnosis.</p>
+        </div>
+      </section>
+
+      <!-- STEP 4: finishing -->
+      <section class="step" id="step-submitting">
+        <div class="center" style="padding-top:50px;">
+          <img src="assets/img/amend-mark.png" alt="" style="width:72px; margin:0 auto;" class="spin" id="waitLogo">
+          <h1 class="step-title" style="margin-top:22px;">Creating your Smile Report</h1>
+          <p class="muted" id="waitLine" style="margin:0;">Looking closely at your photos…</p>
+          <div class="progress-track"><div class="progress-fill" id="waitFill"></div></div>
+          <p class="text-xs muted" id="waitRetry" style="min-height:16px;"></p>
+          <div class="keep-open">📱 Please keep this screen open — usually 20–40 seconds</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    $("logoLink").href = cfg("WEBSITE_URL", "#");
+    document.getElementById("waitLogo").style.animationDuration = "3s";
+
+    const PHOTO_SLOTS = [
+      { label: "Front smile", hint: "Smile naturally, facing the camera" },
+      { label: "Upper teeth", hint: "Lips pulled back, upper teeth in focus" },
+      { label: "Lower teeth", hint: "Lips pulled back, lower teeth in focus" },
+    ];
+    const WAIT_LINES = [
+      "Looking closely at your photos…", "Checking alignment tooth by tooth…", "Reviewing gum colour and enamel…",
+      "Reading your answers…", "Writing your personal summary…", "Almost ready…",
+    ];
+
+    const state = {
+      photos: [null, null, null],        // prepared JPEG data URLs
+      preparing: [false, false, false],
+      questions: [], stepIndex: 0, currentValue: null, answers: [],
+      analysisPromise: null, analysis: null, analysisError: null,
+      refSource: new URLSearchParams(location.search).get("ref") || "direct",
+    };
+
+    // Load questions right away (retries automatically) so step 2 is instant.
+    const questionsPromise = callApi("getPublicQuestions", {}).then((d) => (state.questions = d.questions || []));
+
+    function showStep(id, hint) {
+      document.querySelectorAll(".step").forEach((el) => el.classList.remove("active"));
+      $(id).classList.add("active");
+      if (hint) $("stepHint").textContent = hint;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // ── Step 1: photos ─────────────────────────────────────────────────
+    function renderPhotoGrid() {
+      const grid = $("photoGrid");
+      grid.innerHTML = "";
+      PHOTO_SLOTS.forEach((slot, i) => {
+        const wrap = document.createElement("div");
+        const box = document.createElement("div");
+        box.className = "photo-slot" + (state.photos[i] ? " filled" : "");
+        if (state.photos[i]) {
+          box.innerHTML = `<img src="${state.photos[i]}" alt="${slot.label}"><button class="remove-btn" aria-label="Remove">✕</button>`;
+          box.querySelector(".remove-btn").addEventListener("click", (e) => { e.stopPropagation(); state.photos[i] = null; renderPhotoGrid(); });
+        } else if (state.preparing[i]) {
+          box.innerHTML = `<div class="slot-status"><div class="mini-spinner spin"></div>Preparing photo…</div>`;
+        } else {
+          box.innerHTML = `<div class="photo-slot-icon">📷</div><span class="text-xs" style="font-weight:600;">Take or choose photo</span>`;
+          box.addEventListener("click", () => pickPhoto(i));
+        }
+        wrap.appendChild(box);
+        wrap.insertAdjacentHTML("beforeend", `<div class="photo-label">${slot.label}</div><div class="photo-hint">${slot.hint}</div>`);
+        grid.appendChild(wrap);
+      });
+      $("photosNextBtn").disabled = !state.photos.every(Boolean);
+    }
+
+    function pickPhoto(i) {
+      const input = document.createElement("input");
+      input.type = "file";
+      // No "capture" attribute → phones offer camera AND gallery. .heic/.heif listed so desktop pickers show iPhone files.
+      input.accept = "image/*,.heic,.heif";
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        $("photoError").style.display = "none";
+        state.preparing[i] = true; renderPhotoGrid();
+        try {
+          state.photos[i] = await resizeImageFile(file);
+        } catch (err) {
+          $("photoError").textContent = err.message;
+          $("photoError").style.display = "block";
+        } finally {
+          state.preparing[i] = false; renderPhotoGrid();
+        }
+      };
+      input.click();
+    }
+    renderPhotoGrid();
+
+    $("photosNextBtn").addEventListener("click", async () => {
+      $("photosNextBtn").disabled = true;
+      $("photosNextBtn").textContent = "Loading questions…";
+      try {
+        await questionsPromise.catch(() => callApi("getPublicQuestions", {}).then((d) => (state.questions = d.questions || [])));
+        startQuiz();
+      } catch (err) {
+        $("photoError").textContent = err.message;
+        $("photoError").style.display = "block";
+      } finally {
+        $("photosNextBtn").disabled = false;
+        $("photosNextBtn").textContent = "Continue →";
+      }
+    });
+
+    // ── Step 2: assessment ─────────────────────────────────────────────
+    function isVisible(q) {
+      if (!q.dependsOnId) return true;
+      const parent = state.answers.find((a) => a.questionId === q.dependsOnId);
+      return parent && parent.value === q.dependsOnValue;
+    }
+    function nextVisibleIndex(from) {
+      for (let i = from; i < state.questions.length; i++) if (isVisible(state.questions[i])) return i;
+      return -1;
+    }
+    function startQuiz() {
+      state.answers = [];
+      const first = nextVisibleIndex(0);
+      if (first === -1) return finishQuiz();
+      state.stepIndex = first;
+      showStep("step-quiz", "Step 2 of 3");
+      renderQuestion();
+    }
+    function renderQuestion() {
+      const q = state.questions[state.stepIndex];
+      state.currentValue = null;
+      const done = state.answers.length, total = state.questions.filter((x) => !x.dependsOnId).length || state.questions.length;
+      $("quizProgressText").textContent = `Question ${done + 1}`;
+      const pct = Math.min(100, Math.round((done / total) * 100));
+      $("quizProgressPct").textContent = pct + "%";
+      $("quizProgressFill").style.width = pct + "%";
+      $("quizQuestionText").textContent = q.text;
+      const opts = $("quizOptions"), next = $("quizNextBtn"), skip = $("quizSkipBtn");
+      opts.innerHTML = "";
+      next.textContent = nextVisibleIndex(state.stepIndex + 1) === -1 ? "Finish" : "Next";
+
+      if (q.type === "single_choice" || q.type === "yes_no") {
+        (q.type === "yes_no" ? ["Yes", "No"] : q.options).forEach((opt) => {
+          const b = document.createElement("button");
+          b.className = "quiz-option"; b.textContent = opt;
+          b.addEventListener("click", () => {
+            state.currentValue = opt;
+            opts.querySelectorAll(".quiz-option").forEach((x) => x.classList.remove("selected"));
+            b.classList.add("selected");
+            next.disabled = false;
+          });
+          opts.appendChild(b);
+        });
+        next.disabled = true; skip.classList.add("hidden");
+      } else if (q.type === "number") {
+        const input = document.createElement("input");
+        input.type = "number"; input.inputMode = "numeric"; input.min = "1"; input.max = "120"; input.placeholder = "e.g. 29";
+        input.addEventListener("input", () => { state.currentValue = input.value.trim(); next.disabled = !state.currentValue; });
+        opts.appendChild(input);
+        next.disabled = true; skip.classList.add("hidden");
+        setTimeout(() => input.focus(), 50);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.rows = 2; ta.placeholder = "Type your answer (optional)";
+        ta.addEventListener("input", () => (state.currentValue = ta.value.trim()));
+        opts.appendChild(ta);
+        next.disabled = false; skip.classList.remove("hidden");
+      }
+    }
+    function advance() {
+      const q = state.questions[state.stepIndex];
+      if (state.currentValue) state.answers.push({ questionId: q.id, value: state.currentValue });
+      const n = nextVisibleIndex(state.stepIndex + 1);
+      if (n === -1) finishQuiz(); else { state.stepIndex = n; renderQuestion(); }
+    }
+    $("quizNextBtn").addEventListener("click", advance);
+    $("quizSkipBtn").addEventListener("click", () => { state.currentValue = null; advance(); });
+
+    // ── Background analysis (photos + answers together) ────────────────
+    function startAnalysis() {
+      state.analysis = null; state.analysisError = null;
+      setBgStatus("running", "Our AI is analysing your photos…");
+      const requestId = newRequestId();
+      state.analysisPromise = callApi("analyze", { photos: state.photos, answers: state.answers, requestId }, {
+        timeoutMs: 150000, retries: 3,
+        onRetry: () => setBgStatus("running", "Slow connection — still working on it…"),
+      }).then((d) => { state.analysis = d; setBgStatus("done", "✓ Your analysis is ready"); return d; })
+        .catch((err) => { state.analysisError = err; setBgStatus("fail", err.message); throw err; });
+      state.analysisPromise.catch(() => {}); // handled in UI
+    }
+    function setBgStatus(kind, text) {
+      const el = $("bgStatus");
+      el.className = "bg-status" + (kind === "done" ? " done" : kind === "fail" ? " fail" : "");
+      el.innerHTML = kind === "running" ? `<div class="mini-spinner spin"></div><span>${esc(text)}</span>`
+        : kind === "fail" ? `<span style="flex:1;">${esc(text)}</span><button class="btn btn-sm btn-outline" id="retryAnalysis">Try again</button>`
+        : `<span>${esc(text)}</span>`;
+      const r = $("retryAnalysis");
+      if (r) r.addEventListener("click", startAnalysis);
+    }
+    function finishQuiz() {
+      startAnalysis();
+      showStep("step-contact", "Step 3 of 3");
+      checkContact();
+    }
+
+    // ── Step 3: contact + submit ───────────────────────────────────────
+    function checkContact() { $("submitBtn").disabled = !($("nameInput").value.trim() && $("phoneInput").value.trim()); }
+    ["nameInput", "phoneInput"].forEach((id) => $(id).addEventListener("input", checkContact));
+
+    let waitTimer;
+    function startWaitScreen() {
+      showStep("step-submitting", "Finishing up");
+      const t0 = Date.now(); let line = 0;
+      $("waitRetry").textContent = "";
+      clearInterval(waitTimer);
+      waitTimer = setInterval(() => {
+        const secs = (Date.now() - t0) / 1000;
+        $("waitFill").style.width = Math.min(95, 100 * (1 - Math.exp(-secs / 18))) + "%";
+        if (Math.floor(secs / 5) > line && line < WAIT_LINES.length - 1) { line++; $("waitLine").textContent = WAIT_LINES[line]; }
+      }, 500);
+    }
+
+    $("submitBtn").addEventListener("click", async () => {
+      $("contactError").style.display = "none";
+      startWaitScreen();
+      try {
+        if (!state.analysis) {
+          if (state.analysisError) startAnalysis();          // user pressed submit after a failure → try again
+          await state.analysisPromise;
+        }
+        $("waitLine").textContent = "Saving your report…";
+        const resp = await callApi("submit", {
+          analysisToken: state.analysis.analysisToken,
+          name: $("nameInput").value.trim(), phone: $("phoneInput").value.trim(), email: $("emailInput").value.trim(),
+          refSource: state.refSource, answers: state.answers, photos: state.photos,
+        }, { timeoutMs: 90000, retries: 3, onRetry: () => ($("waitRetry").textContent = "Slow connection — retrying automatically…") });
+        $("waitFill").style.width = "100%";
+        clearInterval(waitTimer);
+        window.location.href = "report.html?id=" + encodeURIComponent(resp.leadId);
+      } catch (err) {
+        clearInterval(waitTimer);
+        showStep("step-contact", "Step 3 of 3");
+        $("contactError").textContent = (err.message || "Something went wrong.") + " Tap the button to try again — your answers are saved.";
+        $("contactError").style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>

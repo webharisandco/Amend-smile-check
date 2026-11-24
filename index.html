@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Free AI Smile Check · Amend Dental Centre</title>
+<link rel="icon" href="assets/img/amend-mark.png" />
+<link rel="stylesheet" href="assets/css/styles.css" />
+<style>
+  .hero { text-align: center; padding: 72px 20px 40px; max-width: 760px; margin: 0 auto; }
+  .hero h1 { font-size: 52px; line-height: 1.05; margin: 14px 0 16px; font-weight: 700; }
+  .hero h1 span { color: var(--orange); }
+  .hero p { font-size: 19px; color: var(--muted); max-width: 540px; margin: 0 auto 30px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 900px; margin: 30px auto 0; padding: 0 20px; }
+  .step-n { width: 30px; height: 30px; border-radius: 999px; background: var(--navy); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .trust { display: flex; justify-content: center; gap: 22px; flex-wrap: wrap; margin-top: 22px; font-size: 13px; color: var(--muted); }
+  @media (max-width: 700px) { .hero h1 { font-size: 36px; } .steps { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <a id="logoLink" href="#" target="_blank" rel="noopener"><img class="logo" src="assets/img/amend-logo.png" alt="Amend Dental Centre"></a>
+      <div class="spacer"></div>
+      <a class="btn btn-ghost btn-sm" id="siteBtn" href="#" target="_blank" rel="noopener">Visit website</a>
+    </header>
+
+    <main style="flex:1;">
+      <section class="hero fade-up">
+        <span class="eyebrow">Free · 2 minutes · Instant results</span>
+        <h1>Your smile, analysed by <span>AI.</span></h1>
+        <p>Snap 3 photos, answer a few quick questions, and get a personal oral health report — plus a free consultation with Amend's dentists.</p>
+        <a href="test.html" id="startBtn" class="btn btn-orange btn-lg">Start my free Smile Check →</a>
+        <div class="trust"><span>🔒 Private & secure</span><span>🦷 Aligner & dental specialists</span><span>📍 5 branches across Kerala</span></div>
+      </section>
+
+      <section class="steps">
+        <div class="card"><div class="step-n">1</div><h3 style="margin:12px 0 4px; font-size:17px;">Snap 3 photos</h3><p class="text-sm muted" style="margin:0;">Front smile, upper and lower teeth — right from your phone.</p></div>
+        <div class="card"><div class="step-n">2</div><h3 style="margin:12px 0 4px; font-size:17px;">Answer a few questions</h3><p class="text-sm muted" style="margin:0;">Symptoms, habits and history help our AI understand you.</p></div>
+        <div class="card"><div class="step-n">3</div><h3 style="margin:12px 0 4px; font-size:17px;">Get your report</h3><p class="text-sm muted" style="margin:0;">Scores, an alignment map, and a free consultation to go through it.</p></div>
+      </section>
+    </main>
+
+    <footer class="center text-xs muted" style="padding:40px 20px 28px; max-width:620px; margin:0 auto;">
+      <p style="margin:0 0 6px;" id="branches"></p>
+      AI-generated screening for guidance only — not a medical diagnosis. Always consult a qualified dentist.
+    </footer>
+  </div>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script>
+    document.getElementById("logoLink").href = document.getElementById("siteBtn").href = cfg("WEBSITE_URL", "#");
+    document.getElementById("branches").textContent = cfg("BRANCHES", "");
+    const ref = new URLSearchParams(location.search).get("ref");
+    if (ref) document.getElementById("startBtn").href = "test.html?ref=" + encodeURIComponent(ref);
+  </script>
+</body>
+</html>
