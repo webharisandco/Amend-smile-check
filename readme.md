@@ -53,48 +53,7 @@ edit.
 
 ---
 
-## 1. Set up the backend (~5 minutes)
 
-1. Go to https://sheets.google.com and create a **blank spreadsheet**.
-   Rename it to something like "Oral Health Leads".
-2. **Extensions → Apps Script**. Delete the placeholder `myFunction()` code
-   and paste in the entire contents of `apps-script/Code.gs` from this
-   folder.
-3. Click **Deploy → New deployment**.
-   - Click the gear icon next to "Select type" → **Web app**
-   - Description: anything
-   - Execute as: **Me**
-   - Who has access: **Anyone**
-   - Click **Deploy**, then **Authorize access** and approve the
-     permissions (it needs Sheets, Drive, and external URL access for
-     OpenAI — that's the OAuth consent screen you'll see, this is Google
-     asking *you* to approve *your own* script, not a third party).
-4. Copy the **Web app URL** it gives you (ends in `/exec`).
-
-That's the entire backend setup. The Sheet gets its `Leads` and `Questions`
-tabs (with headers) automatically the first time the script runs.
-
-> **Redeploying after you edit Code.gs:** Apps Script Web Apps are versioned
-> — editing the script doesn't update the live URL by itself. Use
-> **Deploy → Manage deployments → ✏️ (edit) → Version: New version → Deploy**
-> to push code changes to the same URL.
-
----
-
-## 2. Connect the website to it
-
-Open `assets/js/config.js` and paste the URL from step 1:
-
-```js
-window.APP_CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycb.../exec",
-};
-```
-
-That's the only file you ever need to edit to point this site at your
-backend.
-
----
 
 ## 3. Run it
 
@@ -115,32 +74,6 @@ No environment variables, no build command, no server to keep running.
 
 ---
 
-## 4. First login
-
-Go to `/admin-login.html` on your deployed site. Default credentials:
-
-```
-Username: admin
-Password: changeme123
-```
-
-**Change the password immediately** — Admin → Settings → Admin account.
-
----
-
-## 5. Add your OpenAI key
-
-Admin → Settings → paste your key from
-https://platform.openai.com/api-keys → **Save** → **Test key**.
-
-Default model is `gpt-4o` (vision-capable). Change it in the same field if
-you want a different vision-capable model later.
-
-That's it for setup — no Google OAuth screens to configure, no client
-ID/secret to paste anywhere. The Sheet and Drive folder are already yours
-because the script runs as you.
-
----
 
 ## 6. Customize the assessment
 
@@ -177,43 +110,7 @@ know which channel it came from.
 
 ---
 
-## 8. How "hot lead" scoring works
 
-Each submission gets a 0–100 **risk score** (see `computeRiskScore` in
-`Code.gs`):
-- Severity of each detected category from the photos (decay/cavities and
-  gum health weigh heaviest)
-- +25 if the AI flags a possible root-canal-risk sign
-- Points from specific self-reported symptoms/habits — bleeding gums,
-  pain/sensitivity, tooth color, brushing frequency, flossing, smoking,
-  and dental visit frequency each add points based on the answer given
-  (see `SELF_REPORT_RISK_MAP` in `Code.gs`)
-- +5 if they left contact info
-
-`≥55` → 🔥 Hot, `28–54` → 🌤️ Warm, `<28` → ❄️ Cold. Tune the numbers directly
-in `Code.gs` (`CATEGORY_WEIGHTS`, `SEVERITY_PENALTY`, `SELF_REPORT_RISK_MAP`,
-`classifyTemperature`) if you want to adjust it — then redeploy (see the
-note in step 1).
-
----
-
-## 9. Your data, always
-
-- **Leads** — the `Leads` tab of your Sheet. Every row is one submission.
-  Use Sheets' own File → Download for CSV/Excel export any time — no
-  separate export feature needed, it's already a spreadsheet.
-- **Photos** — the Drive folder the script creates (linked from Admin →
-  Settings).
-- **Assessment questions** — the `Questions` tab.
-- **Settings** (OpenAI key, admin password, brand name, share-link codes) —
-  Apps Script's PropertiesService, a small persistent key/value store tied
-  to the script itself. Not visible in the Sheet, not exposed to the
-  browser.
-
-Delete the Apps Script deployment or revoke its Google permissions at any
-time to fully shut off access — your Sheet data stays exactly as it is.
-
----
 
 ## 10. File structure
 
@@ -240,46 +137,6 @@ test/                      maintainer-only: a Node/Playwright test harness
                             site; see test/logic.test.js and
                             test/browser_check.py if you want to re-verify
                             after making changes.
-```
-
----
-
-## 11. Important technical note (don't "fix" this)
-
-The frontend calls the Apps Script backend with:
-```js
-fetch(url, {
-  method: "POST",
-  headers: { "Content-Type": "text/plain;charset=utf-8" },
-  body: JSON.stringify({ action, payload }),
-});
-```
-`Content-Type: text/plain` is **intentional**, not a mistake. Using
-`application/json` there triggers a CORS preflight (an `OPTIONS` request)
-that Apps Script Web Apps cannot answer, which breaks every single request
-with a CORS error. `text/plain` counts as a browser "simple request" so no
-preflight happens — and `Code.gs`'s `doPost` still parses the body as JSON
-fine regardless of what Content-Type says. This is a very common trap when
-extending this project — if requests start failing with CORS errors after
-you change something, check you haven't changed this header.
-
----
-
-## 12. Troubleshooting
-
-- **"This site isn't connected to its backend yet"** — you haven't pasted
-  your Web App URL into `assets/js/config.js` yet.
-- **CORS error in the browser console** — see §11 above; also double-check
-  the deployment's "Who has access" is set to **Anyone**, not "Anyone with
-  Google account" or "Only myself".
-- **Changes to Code.gs don't show up** — you edited the script but didn't
-  push a new deployment version (see the note in step 1).
-- **"OpenAI request failed"** — check the key in Admin → Settings → Test
-  key; also confirm your OpenAI account has quota for the model you set.
-- **Photos not showing in the admin dashboard** — the Drive folder's
-  sharing needs to allow "Anyone with the link — Viewer"; the script sets
-  this automatically on upload, but if you manually moved/reorganized the
-  folder, permissions may not have carried over.
 
 ---
 
