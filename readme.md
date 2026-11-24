@@ -55,7 +55,7 @@ edit.
 
 
 
-## 3. Run it
+##  Run it
 
 **Just testing locally?** From this folder:
 ```bash
@@ -75,7 +75,7 @@ No environment variables, no build command, no server to keep running.
 ---
 
 
-## 6. Customize the assessment
+##  Customize the assessment
 
 Admin → Assessment Questions. This is a self-report intake form, not a
 graded quiz — there's no "correct answer." Every active question is shown,
@@ -102,17 +102,7 @@ since that's a past, already-treated fact rather than an active concern.
 
 ---
 
-## 7. Share links
-
-Admin → Share Links → generate a labeled link (e.g. "Instagram bio"). It's
-just `test.html?ref=yourcode` — the `ref` is recorded on every lead so you
-know which channel it came from.
-
----
-
-
-
-## 10. File structure
+##  File structure
 
 ```
 index.html              landing page
