@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/config";
+import AdminIconLink from "@/components/AdminIconLink";
 
 export default async function HomePage({ searchParams }) {
   const { ref } = await searchParams;
@@ -12,6 +13,7 @@ export default async function HomePage({ searchParams }) {
           <img className="logo" src="/img/amend-logo.png" alt={siteConfig.clinicName} />
         </a>
         <div className="spacer" />
+        <AdminIconLink />
         <a className="btn btn-ghost btn-sm" href={siteConfig.websiteUrl} target="_blank" rel="noopener">
           Visit website
         </a>
