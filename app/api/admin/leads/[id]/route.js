@@ -3,7 +3,7 @@ import { route, requireAdmin, readJson, HttpError } from "@/lib/http";
 import { connectDb } from "@/lib/db";
 import { Lead, LEAD_STATUSES } from "@/lib/models";
 import { serializeLead, findLead } from "@/lib/data";
-import { deletePhotos } from "@/lib/cloudinary";
+import { deletePhotos } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,11 +38,11 @@ export const PATCH = route(async (req, ctx) => {
   return NextResponse.json({ ok: true });
 });
 
-/** Permanently deletes the lead AND its photos from Cloudinary. */
+/** Permanently deletes the lead AND its photos from Bunny Storage. */
 export const DELETE = route(async (_req, ctx) => {
   await requireAdmin();
   const doc = await loadLead(ctx);
-  await deletePhotos((doc.photos || []).map((p) => p.publicId));
+  await deletePhotos((doc.photos || []).map((p) => p.path));
   await connectDb();
   await Lead.deleteOne({ _id: doc._id });
   return NextResponse.json({ ok: true });

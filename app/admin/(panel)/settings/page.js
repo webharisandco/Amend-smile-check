@@ -103,12 +103,12 @@ export default function SettingsPage() {
           <div>🍃 <b>Leads, questions &amp; settings:</b> MongoDB{s?.databaseName ? <> — database <code>{s.databaseName}</code></> : null}</div>
           <div>
             🖼️ <b>Patient photos:</b>{" "}
-            {s ? (s.cloudinaryConfigured ? <>Cloudinary — folder <code>{s.cloudinaryFolder}/photos</code> (private)</> : <span className="error-text">Cloudinary not configured — set CLOUDINARY_URL</span>) : "…"}
+            {s ? (s.storageConfigured ? <>Bunny Storage — zone <code>{s.storageZone}</code>, folder <code>{s.storageFolder}/photos</code> (private)</> : <span className="error-text">Bunny Storage not configured — set BUNNY_STORAGE_ZONE and BUNNY_STORAGE_API_KEY</span>) : "…"}
           </div>
         </div>
         <div className="flex gap-8 mt-16" style={{ flexWrap: "wrap" }}>
           <a className="btn btn-outline btn-sm" href="https://cloud.mongodb.com/" target="_blank" rel="noopener">Open MongoDB Atlas</a>
-          <a className="btn btn-outline btn-sm" href="https://console.cloudinary.com/" target="_blank" rel="noopener">Open Cloudinary</a>
+          <a className="btn btn-outline btn-sm" href="https://dash.bunny.net/storage" target="_blank" rel="noopener">Open Bunny Storage</a>
         </div>
       </div>
 

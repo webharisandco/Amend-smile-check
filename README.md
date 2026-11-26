@@ -6,7 +6,7 @@ report, and the clinic gets a lead-scored admin dashboard.
 | What | Where it's stored |
 |---|---|
 | Leads, questions, settings, share links | **MongoDB** (e.g. MongoDB Atlas) |
-| Patient photos | **Cloudinary**, as *private* images (viewable only through signed links the server creates) |
+| Patient photos | **Bunny.net Storage**, in a *private* storage zone (shown only through expiring signed links the server creates, via `/api/photos`) |
 | AI analysis | OpenAI (called from the server; the key never reaches the browser) |
 
 The old static HTML + Google Apps Script version is kept in [`legacy/`](legacy/) for reference.
@@ -22,9 +22,12 @@ The old static HTML + Google Apps Script version is kept in [`legacy/`](legacy/)
 4. *Connect → Drivers* → copy the connection string. Add a database name before the `?`, e.g.
    `mongodb+srv://user:pass@cluster0.xxxx.mongodb.net/amend-smile-check?retryWrites=true&w=majority`
 
-**Cloudinary**
-1. Sign up at <https://cloudinary.com>.
-2. Dashboard → copy the **API environment variable** (`cloudinary://KEY:SECRET@CLOUD_NAME`).
+**Bunny.net Storage**
+1. Sign up at <https://bunny.net>, then go to **Storage → Add Storage Zone**. Pick a region close to
+   your patients (e.g. Singapore for India).
+2. Open the zone → **FTP & API Access** and copy the **zone name**, the **password** (this is the storage
+   API key, *not* your account API key) and the **hostname** (e.g. `sg.storage.bunnycdn.com`).
+3. **Don't connect a Pull Zone** to it. That would make the photos public. The app serves them itself.
 
 **OpenAI**: an API key with access to `gpt-4o` (you can also paste it later in Admin → Settings).
 
@@ -51,11 +54,11 @@ See [`.env.example`](.env.example) for all of them. Required:
 | Variable | Purpose |
 |---|---|
 | `MONGODB_URI` | MongoDB connection string |
-| `CLOUDINARY_URL` | Cloudinary credentials |
+| `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_API_KEY`, `BUNNY_STORAGE_HOST` | Bunny storage zone name, its password, and its region hostname |
 | `AUTH_SECRET` | Long random string (32+ chars) that signs admin sessions |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | First admin account |
 
-Optional: `OPENAI_API_KEY`, `OPENAI_MODEL`, `CLOUDINARY_FOLDER`, and the `NEXT_PUBLIC_*` branding/links
+Optional: `OPENAI_API_KEY`, `OPENAI_MODEL`, `BUNNY_STORAGE_FOLDER`, and the `NEXT_PUBLIC_*` branding/links
 (clinic name, website, booking link, branches). `NEXT_PUBLIC_*` values are baked in at build time,
 so **rebuild after changing them**.
 

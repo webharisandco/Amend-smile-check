@@ -179,12 +179,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {settings && (!settings.openaiConfigured || settings.usingDefaultPassword || !settings.cloudinaryConfigured) && (
+      {settings && (!settings.openaiConfigured || settings.usingDefaultPassword || !settings.storageConfigured) && (
         <div className="banner banner-warn">
           <strong>Finish setup:</strong>{" "}
           {[
             !settings.openaiConfigured && "add your OpenAI API key",
-            !settings.cloudinaryConfigured && "set CLOUDINARY_URL so photos can be saved",
+            !settings.storageConfigured && "set the BUNNY_STORAGE_* settings so photos can be saved",
             settings.usingDefaultPassword && "change the default admin password",
           ].filter(Boolean).join(" · ")}
           . <Link href="/admin/settings">Open Settings →</Link>

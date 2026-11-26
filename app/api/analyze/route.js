@@ -7,7 +7,7 @@ import { getSettings, openaiKeyOf, getAllQuestions } from "@/lib/data";
 import { buildAnswersSummary } from "@/lib/questions";
 import { computeOralHealthScore } from "@/lib/scoring";
 import { callOpenAIVision } from "@/lib/openai";
-import { assertPhotoDataUrl } from "@/lib/cloudinary";
+import { assertPhotoDataUrl } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

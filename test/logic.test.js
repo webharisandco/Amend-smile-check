@@ -10,6 +10,7 @@ import {
 } from "../lib/scoring.js";
 import { seedQuestions, buildAnswersSummary, cleanAnswers, normalizeQuestion } from "../lib/questions.js";
 import { createSessionToken, verifySessionToken } from "../lib/auth.js";
+import { signedPhotoUrl, verifyPhotoLink, assertPhotoDataUrl } from "../lib/storage.js";
 
 const cat = (score, severity) => ({ score, severity, summary: "" });
 const sample = (over = {}) => ({
@@ -94,6 +95,25 @@ test("classifyTemperature thresholds", () => {
   assert.equal(classifyTemperature(54), "warm");
   assert.equal(classifyTemperature(28), "warm");
   assert.equal(classifyTemperature(27), "cold");
+});
+
+test("photo links: valid link passes; tampered, expired or outside-folder links fail", () => {
+  process.env.AUTH_SECRET = "test-secret-that-is-definitely-longer-than-32-chars";
+  const path = "amend-smile-check/photos/abc123_1.jpg";
+  const q = new URL(signedPhotoUrl(path), "http://x").searchParams;
+  assert.equal(q.get("p"), path);
+  assert.ok(verifyPhotoLink(q.get("p"), q.get("e"), q.get("s")));
+  assert.ok(!verifyPhotoLink("amend-smile-check/photos/other_1.jpg", q.get("e"), q.get("s"))); // other photo
+  assert.ok(!verifyPhotoLink(path, String(Number(q.get("e")) + 1), q.get("s"))); // changed expiry
+  assert.ok(!verifyPhotoLink(path, String(Date.now() - 1000), q.get("s"))); // expired
+  assert.ok(!verifyPhotoLink("amend-smile-check/photos/../secret.jpg", q.get("e"), q.get("s"))); // path tricks
+  assert.ok(!verifyPhotoLink("other-folder/x.jpg", q.get("e"), q.get("s")));
+});
+
+test("assertPhotoDataUrl accepts images, rejects anything else", () => {
+  assert.doesNotThrow(() => assertPhotoDataUrl("data:image/jpeg;base64,/9j/4AAQ"));
+  assert.throws(() => assertPhotoDataUrl("data:text/html;base64,PGh0bWw+"));
+  assert.throws(() => assertPhotoDataUrl("https://example.com/a.jpg"));
 });
 
 test("admin session tokens: round-trip, tamper and wrong-secret rejected", async () => {

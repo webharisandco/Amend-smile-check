@@ -6,14 +6,14 @@ import { Analysis, Lead } from "@/lib/models";
 import { getAllQuestions } from "@/lib/data";
 import { cleanAnswers } from "@/lib/questions";
 import { computeSelfReportedRisk, computeRiskScore, classifyTemperature } from "@/lib/scoring";
-import { uploadPhoto, deletePhotos, assertPhotoDataUrl } from "@/lib/cloudinary";
+import { uploadPhoto, deletePhotos, assertPhotoDataUrl } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Saves the lead: uploads the photos to Cloudinary (private) and stores the
+ * Saves the lead: uploads the photos to Bunny Storage (private) and stores the
  * lead in MongoDB. Safe to retry — the same analysisToken always returns
  * the same lead instead of creating a duplicate.
  */
@@ -49,7 +49,7 @@ export const POST = route(async (req) => {
   const riskScore = computeRiskScore(cached.analysis, selfReportedRisk, Boolean(phone || email));
 
   const leadId = randomBytes(8).toString("hex");
-  const publicIds = await Promise.all(photos.map((p, i) => uploadPhoto(p, `${leadId}_${i + 1}`)));
+  const paths = await Promise.all(photos.map((p, i) => uploadPhoto(p, `${leadId}_${i + 1}`)));
 
   try {
     await Lead.create({
@@ -59,7 +59,7 @@ export const POST = route(async (req) => {
       phone,
       email,
       refSource: str(body.refSource, 60) || "direct",
-      photos: publicIds.map((publicId) => ({ publicId })),
+      photos: paths.map((path) => ({ path })),
       oralHealthScore: cached.oralHealthScore,
       analysis: cached.analysis,
       assessmentAnswers: answers,
@@ -69,7 +69,7 @@ export const POST = route(async (req) => {
       notes: "",
     });
   } catch (err) {
-    await deletePhotos(publicIds).catch(() => {});
+    await deletePhotos(paths).catch(() => {});
     if (err.code === 11000) {
       // A parallel retry saved this same submission first — return that lead.
       const winner = await Lead.findOne({ analysisToken }, { leadId: 1 }).lean();

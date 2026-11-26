@@ -58,7 +58,7 @@ export default function LeadPage() {
 
   async function deleteLead() {
     const ok = window.confirm(
-      `Permanently delete ${lead.name || "this lead"}?\n\nThis removes their details, AI report and all photos (from Cloudinary). The patient's report link will stop working. This cannot be undone.`
+      `Permanently delete ${lead.name || "this lead"}?\n\nThis removes their details, AI report and all photos (from Bunny Storage). The patient's report link will stop working. This cannot be undone.`
     );
     if (!ok) return;
     setDeleting(true);
