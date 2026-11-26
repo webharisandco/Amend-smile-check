@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import AlignmentDiagram from "@/components/AlignmentDiagram";
 import { api } from "@/lib/client/api";
 import { STATUSES, TEMP_META, waLink, reportLink, updateLead, copyText } from "@/lib/client/admin";
+import { useMe } from "@/components/AdminContext";
 
 const CATS = [["alignment", "Alignment"], ["decayCavities", "Cavity check"], ["gumHealth", "Gum health"], ["enamelWear", "Enamel"], ["stainingColor", "Shade"]];
 const URG = { routine: "badge-brand", soon: "badge-orange", priority: "badge-danger" };
@@ -21,6 +22,25 @@ export default function LeadPage() {
   const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [takenAt, setTakenAt] = useState("");
+  const me = useMe();
+  const fullAccess = Boolean(me); // Super Admin and team users both see everything
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    if (fullAccess) api("/api/admin/users").then((d) => setUsers(d.users || [])).catch(() => {});
+  }, [fullAccess]);
+
+  async function assign(ownerId) {
+    const prev = lead.ownerId;
+    const u = users.find((x) => x.id === ownerId);
+    setLead({ ...lead, ownerId: ownerId || null, ownerName: u ? u.name : null });
+    try {
+      await updateLead(lead.leadId, { ownerId: ownerId || null });
+    } catch (err) {
+      alert(err.message);
+      setLead((l) => ({ ...l, ownerId: prev }));
+    }
+  }
 
   useEffect(() => {
     api(`/api/admin/leads/${encodeURIComponent(id)}`)
@@ -248,7 +268,21 @@ export default function LeadPage() {
             <div className="kv"><span>Phone</span><span>{lead.phone || "—"}</span></div>
             <div className="kv"><span>Email</span><span>{lead.email || "—"}</span></div>
             <div className="kv"><span>Lead ID</span><span>{lead.leadId}</span></div>
+            {!fullAccess && <div className="kv"><span>Source link</span><span>{lead.refSource || "direct"}</span></div>}
           </div>
+
+          {fullAccess && (
+            <div className="card">
+              <h2 className="h">Assigned to</h2>
+              <select value={lead.ownerId || ""} onChange={(e) => assign(e.target.value)}>
+                <option value="">Unassigned</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}{u.active ? "" : " (deactivated)"}</option>)}
+              </select>
+              <p className="text-xs muted mt-8" style={{ marginBottom: 0 }}>
+                Came in via <b>{lead.refSource || "direct"}</b>. The assigned user sees this lead on their dashboard.
+              </p>
+            </div>
+          )}
 
           <div className="card">
             <h2 className="h">Self-reported answers</h2>
@@ -261,13 +295,13 @@ export default function LeadPage() {
             )}
           </div>
 
-          <div className="card">
+          {fullAccess && <div className="card">
             <h2 className="h">Danger zone</h2>
             <p className="text-sm muted" style={{ margin: "0 0 12px" }}>Removes this lead and its photos for good — e.g. if the patient asks for their data to be deleted.</p>
             <button className="btn btn-danger-outline btn-sm" onClick={deleteLead} disabled={deleting}>
               {deleting ? "Deleting…" : "🗑️ Delete lead & photos"}
             </button>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

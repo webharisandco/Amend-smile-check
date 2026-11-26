@@ -5,7 +5,7 @@ import { api } from "@/lib/client/api";
 import { siteConfig } from "@/lib/config";
 
 export default function AdminLoginForm() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -15,7 +15,7 @@ export default function AdminLoginForm() {
     setError("");
     setBusy(true);
     try {
-      await api("/api/admin/login", { method: "POST", body: { username, password }, retries: 0 });
+      await api("/api/admin/login", { method: "POST", body: { email, password }, retries: 0 });
       window.location.href = "/admin"; // full load so the new session cookie is used everywhere
     } catch (err) {
       setError(err.message || "Login failed.");
@@ -33,9 +33,9 @@ export default function AdminLoginForm() {
         </div>
         <form className="card" onSubmit={onSubmit} style={{ boxShadow: "0 20px 40px -10px rgba(0,0,0,0.25)" }}>
           <div className="field">
-            <label className="field-label" htmlFor="username">Username</label>
-            <input id="username" type="text" required autoFocus autoComplete="username" value={username}
-              onChange={(e) => setUsername(e.target.value)} />
+            <label className="field-label" htmlFor="email">Email</label>
+            <input id="email" type="email" required autoFocus autoComplete="username" value={email}
+              onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="password">Password</label>

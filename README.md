@@ -41,11 +41,25 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. Admin: <http://localhost:3000/admin>, where you log in with
-`ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env.local`.
+`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env.local`.
 
-The admin account is created from those two variables **the first time the app starts**. After
-that, change the username/password in **Admin → Settings**; editing `.env.local` again won't
-change an existing account.
+### Admin roles
+
+| | Super Admin | Team user |
+|---|---|---|
+| Who | One person, set **only** in env vars (`SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`) | Created by the Super Admin in **Settings → Team users** |
+| All leads, "Showing" filter by user, reassign/delete leads | ✅ | ✅ |
+| Share links (with an owner per link) | ✅ | ✅ |
+| Questions, AI/branding settings | ✅ | ✅ |
+| **Create / edit / deactivate / delete team users** | ✅ | ❌ |
+| Change own password | in env vars | in Settings |
+
+- A lead is assigned to whoever owns the share link the patient used (`/test?ref=code`). Leads from
+  links without an owner, or with no link, are **unassigned**. Anyone can assign them on the lead page.
+- Deactivating a user, resetting their password, or deleting them signs them out immediately.
+  Deleting a user keeps their leads and links, which become unassigned.
+- To change the Super Admin login, edit the env vars and restart. Old Super Admin sessions stop working.
+- Failed logins are rate-limited (8 tries per 15 minutes per IP and email).
 
 ## 3. Environment variables
 
@@ -56,7 +70,7 @@ See [`.env.example`](.env.example) for all of them. Required:
 | `MONGODB_URI` | MongoDB connection string |
 | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_API_KEY`, `BUNNY_STORAGE_HOST` | Bunny storage zone name, its password, and its region hostname |
 | `AUTH_SECRET` | Long random string (32+ chars) that signs admin sessions |
-| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | First admin account |
+| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | Super Admin login (full access; never stored in the database) |
 
 Optional: `OPENAI_API_KEY`, `OPENAI_MODEL`, `BUNNY_STORAGE_FOLDER`, and the `NEXT_PUBLIC_*` branding/links
 (clinic name, website, booking link, branches). `NEXT_PUBLIC_*` values are baked in at build time,
@@ -95,7 +109,7 @@ on plain `http://`.
 | `/admin/leads/<id>` | One lead: photos, AI findings, internal consultation angle, stage, notes, delete |
 | `/admin/questions` | Edit the questionnaire |
 | `/admin/links` | Trackable share links (`/test?ref=code`) |
-| `/admin/settings` | Brand name, OpenAI key/model, admin username/password |
+| `/admin/settings` | Super Admin: brand name, OpenAI key/model, **team users**. Team user: change own password |
 
 Old links (`test.html`, `report.html?id=…`, `index.html`) redirect to the new pages. Leads from
 the old Google Sheet were **not** imported, so old report links show "Report not found".

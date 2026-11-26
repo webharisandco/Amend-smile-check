@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, fmtDate } from "@/lib/client/api";
 import { STATUSES, TEMP_META, isAligner, leadHook, waLink, reportLink, updateLead, siteOrigin, copyText } from "@/lib/client/admin";
+import { useMe } from "@/components/AdminContext";
 
 const DAY = 864e5;
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
@@ -32,8 +33,12 @@ function Bars({ entries, color }) {
 }
 
 export default function DashboardPage() {
+  const me = useMe();
+  const fullAccess = Boolean(me); // Super Admin and team users both see everything
   const [leads, setLeads] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [owner, setOwner] = useState("all"); // Super Admin: "all" | "none" | userId
   const [error, setError] = useState("");
   const [greeting, setGreeting] = useState("");
   const [copied, setCopied] = useState(false);
@@ -42,9 +47,14 @@ export default function DashboardPage() {
   async function load() {
     setError("");
     try {
-      const [l, s] = await Promise.all([api("/api/admin/leads"), api("/api/admin/settings")]);
+      const [l, s, u] = await Promise.all([
+        api("/api/admin/leads"),
+        fullAccess ? api("/api/admin/settings") : null,
+        fullAccess ? api("/api/admin/users") : null,
+      ]);
       setLeads(l.leads || []);
-      setSettings(s.settings || {});
+      if (s) setSettings(s.settings || {});
+      if (u) setUsers(u.users || []);
     } catch (err) {
       setError(err.message);
       setLeads((prev) => prev || []);
@@ -58,10 +68,19 @@ export default function DashboardPage() {
         " · " +
         new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
     );
-    load();
   }, []);
 
-  const all = leads || [];
+  useEffect(() => {
+    if (me) load();
+  }, [me]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Everything on this page (KPIs, queue, charts, table) follows the owner selector.
+  const all = useMemo(() => {
+    const list = leads || [];
+    if (!fullAccess || owner === "all") return list;
+    if (owner === "none") return list.filter((l) => !l.ownerId);
+    return list.filter((l) => l.ownerId === owner);
+  }, [leads, owner, fullAccess]);
 
   async function setStatus(lead, status) {
     const prev = lead.status;
@@ -136,9 +155,9 @@ export default function DashboardPage() {
   }, [all, f]);
 
   function exportCsv() {
-    const rows = [["Date", "Name", "Phone", "Email", "Source", "Oral score", "Heat", "Risk", "Aligner candidate", "Opportunity", "Stage", "Report link", "Notes"]];
+    const rows = [["Date", "Name", "Phone", "Email", "Source", "Owner", "Oral score", "Heat", "Risk", "Aligner candidate", "Opportunity", "Stage", "Report link", "Notes"]];
     filtered.forEach((l) =>
-      rows.push([l.timestamp, l.name, l.phone, l.email, l.refSource, l.oralHealthScore, l.temperature, l.riskScore,
+      rows.push([l.timestamp, l.name, l.phone, l.email, l.refSource, l.ownerName || "Unassigned", l.oralHealthScore, l.temperature, l.riskScore,
         isAligner(l) ? "Yes" : "No", leadHook(l), l.status, reportLink(l), l.notes])
     );
     // Prefix cells that start with = + - @ so spreadsheet apps don't run them as formulas.
@@ -172,20 +191,29 @@ export default function DashboardPage() {
           <div className="eyebrow">{greeting}</div>
           <h1>Lead dashboard</h1>
         </div>
-        <div className="flex gap-8" style={{ flexWrap: "wrap" }}>
+        <div className="flex gap-8 items-center" style={{ flexWrap: "wrap" }}>
+          {fullAccess && (
+            <label className="text-sm flex items-center gap-8" style={{ whiteSpace: "nowrap" }}>
+              <span className="muted">Showing</span>
+              <select value={owner} onChange={(e) => setOwner(e.target.value)} style={{ width: "auto", padding: "7px 10px", fontSize: 13 }}>
+                <option value="all">All users</option>
+                <option value="none">Unassigned</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}{u.active ? "" : " (deactivated)"}</option>)}
+              </select>
+            </label>
+          )}
           <button className="btn btn-outline btn-sm" onClick={copyTestLink}>{copied ? "✓ Copied" : "🔗 Copy test link"}</button>
           <button className="btn btn-outline btn-sm" onClick={exportCsv} disabled={!filtered.length}>⬇ Export CSV</button>
           <button className="btn btn-primary btn-sm" onClick={load}>↻ Refresh</button>
         </div>
       </div>
 
-      {settings && (!settings.openaiConfigured || settings.usingDefaultPassword || !settings.storageConfigured) && (
+      {settings && (!settings.openaiConfigured || !settings.storageConfigured) && (
         <div className="banner banner-warn">
           <strong>Finish setup:</strong>{" "}
           {[
             !settings.openaiConfigured && "add your OpenAI API key",
             !settings.storageConfigured && "set the BUNNY_STORAGE_* settings so photos can be saved",
-            settings.usingDefaultPassword && "change the default admin password",
           ].filter(Boolean).join(" · ")}
           . <Link href="/admin/settings">Open Settings →</Link>
         </div>
@@ -311,14 +339,14 @@ export default function DashboardPage() {
         <div style={{ overflowX: "auto" }}>
           <table className="data-table">
             <thead>
-              <tr><th>Lead</th><th>Score</th><th>Heat</th><th>Opportunity</th><th>Source</th><th>Stage</th><th>Date</th><th></th></tr>
+              <tr><th>Lead</th><th>Score</th><th>Heat</th><th>Opportunity</th><th>Source</th>{fullAccess && <th>Owner</th>}<th>Stage</th><th>Date</th><th></th></tr>
             </thead>
             <tbody>
               {leads === null && (
-                <tr><td colSpan={8} className="center muted" style={{ padding: 40 }}>Loading…</td></tr>
+                <tr><td colSpan={fullAccess ? 9 : 8} className="center muted" style={{ padding: 40 }}>Loading…</td></tr>
               )}
               {leads !== null && !filtered.length && (
-                <tr><td colSpan={8} className="center muted" style={{ padding: 40 }}>{n ? "No leads match these filters." : "No tests taken yet — share your test link to get started."}</td></tr>
+                <tr><td colSpan={fullAccess ? 9 : 8} className="center muted" style={{ padding: 40 }}>{n ? "No leads match these filters." : "No tests taken yet — share your test link to get started."}</td></tr>
               )}
               {filtered.map((l) => {
                 const t = TEMP_META[l.temperature] || TEMP_META.cold;
@@ -332,6 +360,7 @@ export default function DashboardPage() {
                     <td><span className={"badge " + t.cls}>{t.icon} {t.label}</span></td>
                     <td><span className={"badge " + (isAligner(l) ? "badge-orange" : "badge-neutral")}>{leadHook(l)}</span></td>
                     <td className="text-xs muted">{l.refSource || "direct"}</td>
+                    {fullAccess && <td className="text-xs">{l.ownerName || <span className="muted">Unassigned</span>}</td>}
                     <td>
                       <select className="status-select" value={l.status} onChange={(e) => setStatus(l, e.target.value)}>
                         {STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}

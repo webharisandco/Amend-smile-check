@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { route, readJson, HttpError, str } from "@/lib/http";
 import { connectDb } from "@/lib/db";
-import { Analysis, Lead } from "@/lib/models";
+import { Analysis, Lead, Link } from "@/lib/models";
 import { getAllQuestions } from "@/lib/data";
 import { cleanAnswers } from "@/lib/questions";
 import { computeSelfReportedRisk, computeRiskScore, classifyTemperature } from "@/lib/scoring";
@@ -48,6 +48,10 @@ export const POST = route(async (req) => {
   const selfReportedRisk = computeSelfReportedRisk(questions, answers);
   const riskScore = computeRiskScore(cached.analysis, selfReportedRisk, Boolean(phone || email));
 
+  // A lead that arrives through a team user's share link belongs to that user.
+  const refSource = str(body.refSource, 60) || "direct";
+  const link = refSource !== "direct" ? await Link.findOne({ code: refSource }, { ownerId: 1 }).lean() : null;
+
   const leadId = randomBytes(8).toString("hex");
   const paths = await Promise.all(photos.map((p, i) => uploadPhoto(p, `${leadId}_${i + 1}`)));
 
@@ -58,7 +62,8 @@ export const POST = route(async (req) => {
       name,
       phone,
       email,
-      refSource: str(body.refSource, 60) || "direct",
+      refSource,
+      ownerId: link?.ownerId || null,
       photos: paths.map((path) => ({ path })),
       oralHealthScore: cached.oralHealthScore,
       analysis: cached.analysis,

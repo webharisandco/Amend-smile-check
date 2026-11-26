@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { route, requireAdmin, readJson, str } from "@/lib/http";
+import { route, readJson, str } from "@/lib/http";
+import { requireSession } from "@/lib/session";
 import { Setting } from "@/lib/models";
 import { getSettings, publicSettings } from "@/lib/data";
 
@@ -7,13 +8,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = route(async () => {
-  await requireAdmin();
+  await requireSession();
   return NextResponse.json({ settings: await publicSettings() });
 });
 
 /** Brand name, OpenAI key and model. A blank key field keeps the current key. */
 export const PUT = route(async (req) => {
-  await requireAdmin();
+  await requireSession();
   const body = await readJson(req);
   await getSettings(); // make sure the document exists
   const set = {};

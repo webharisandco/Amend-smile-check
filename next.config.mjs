@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Lets a check build run into a separate folder without disturbing a running `npm run dev`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
 
   // Old static-site URLs (share links, QR codes, WhatsApp messages already sent)
   // keep working after the move to Next.js.

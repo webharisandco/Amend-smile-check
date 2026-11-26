@@ -1,33 +1,41 @@
 import { NextResponse } from "next/server";
-import { route, requireAdmin, readJson, str } from "@/lib/http";
-import { Setting } from "@/lib/models";
-import { getSettings, publicSettings, verifyAdminPassword, hashPassword } from "@/lib/data";
+import { route, readJson, HttpError } from "@/lib/http";
+import { connectDb } from "@/lib/db";
+import { User } from "@/lib/models";
+import { hashPassword, verifyPassword } from "@/lib/data";
+import { createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth";
+import { requireSession, MIN_PASSWORD_LENGTH } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Change admin username and/or password (password change needs the current password). */
+/** A team user changes their own password. (The Super Admin's lives in env vars.) */
 export const POST = route(async (req) => {
-  await requireAdmin();
-  const body = await readJson(req);
-  const s = await getSettings();
-  const set = {};
-  const errors = [];
-
-  const newUsername = str(body.newUsername, 120);
-  if (newUsername) set.adminUsername = newUsername;
-
-  const newPassword = String(body.newPassword || "").trim();
-  if (newPassword) {
-    if (!(await verifyAdminPassword(s, body.currentPassword))) {
-      errors.push("Current password is incorrect — password was not changed.");
-    } else if (newPassword.length < 8) {
-      errors.push("New password must be at least 8 characters — password was not changed.");
-    } else {
-      set.adminPasswordHash = await hashPassword(newPassword);
-    }
+  const s = await requireSession();
+  if (s.role === "super") {
+    throw new HttpError(400, "The Super Admin password is set in the server's environment variables (SUPER_ADMIN_PASSWORD).");
   }
-
-  if (Object.keys(set).length) await Setting.updateOne({ key: "app" }, { $set: set });
-  return NextResponse.json({ settings: await publicSettings(), errors: errors.length ? errors : null });
+  const body = await readJson(req);
+  const newPassword = String(body.newPassword || "");
+  await connectDb();
+  const user = await User.findById(s.userId).lean();
+  if (!(await verifyPassword(body.currentPassword, user?.passwordHash))) {
+    throw new HttpError(400, "Current password is incorrect.");
+  }
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    throw new HttpError(400, `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+  }
+  const updated = await User.findByIdAndUpdate(
+    user._id,
+    { $set: { passwordHash: await hashPassword(newPassword) }, $inc: { tokenVersion: 1 } },
+    { new: true, lean: true }
+  );
+  // Other devices are signed out; keep this one signed in with a fresh session.
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(
+    SESSION_COOKIE,
+    await createSessionToken({ sub: String(updated._id), role: "user", ver: updated.tokenVersion }),
+    sessionCookieOptions()
+  );
+  return res;
 });

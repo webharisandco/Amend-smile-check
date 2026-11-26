@@ -116,10 +116,35 @@ test("assertPhotoDataUrl accepts images, rejects anything else", () => {
   assert.throws(() => assertPhotoDataUrl("https://example.com/a.jpg"));
 });
 
+test("super admin: credentials checked from env, case-insensitive email, fingerprint changes with password", async () => {
+  const { checkSuperAdmin, superFingerprint, isSuperAdminEmail } = await import("../lib/credentials.js");
+  process.env.AUTH_SECRET = "test-secret-that-is-definitely-longer-than-32-chars";
+  process.env.SUPER_ADMIN_EMAIL = "Owner@Clinic.com";
+  process.env.SUPER_ADMIN_PASSWORD = "correct horse battery";
+  assert.ok(checkSuperAdmin(" owner@clinic.COM ", "correct horse battery"));
+  assert.ok(!checkSuperAdmin("owner@clinic.com", "wrong password"));
+  assert.ok(!checkSuperAdmin("someone@else.com", "correct horse battery"));
+  assert.ok(isSuperAdminEmail("OWNER@clinic.com"));
+  const fp1 = superFingerprint();
+  process.env.SUPER_ADMIN_PASSWORD = "a brand new password";
+  assert.notEqual(superFingerprint(), fp1); // old super sessions stop working
+  process.env.SUPER_ADMIN_PASSWORD = "short";
+  assert.ok(!checkSuperAdmin("owner@clinic.com", "short")); // too short = Super Admin disabled
+});
+
+test("login limiter blocks after repeated failures", async () => {
+  const { loginBlocked, recordLoginFailure, clearLoginFailures } = await import("../lib/credentials.js");
+  const key = "1.2.3.4|x@y.z";
+  for (let i = 0; i < 8; i++) recordLoginFailure(key);
+  assert.ok(loginBlocked(key));
+  clearLoginFailures(key);
+  assert.ok(!loginBlocked(key));
+});
+
 test("admin session tokens: round-trip, tamper and wrong-secret rejected", async () => {
   process.env.AUTH_SECRET = "test-secret-that-is-definitely-longer-than-32-chars";
-  const token = await createSessionToken("admin");
-  assert.equal((await verifySessionToken(token)).u, "admin");
+  const token = await createSessionToken({ sub: "super", role: "super", ver: "abc" });
+  assert.equal((await verifySessionToken(token)).role, "super");
   assert.equal(await verifySessionToken(token.slice(0, -2) + "xx"), null);
   assert.equal(await verifySessionToken(""), null);
   process.env.AUTH_SECRET = "a-completely-different-secret-also-over-32-chars";
