@@ -12,6 +12,7 @@ import { seedQuestions, buildAnswersSummary, cleanAnswers, normalizeQuestion } f
 import { createSessionToken, verifySessionToken } from "../lib/auth.js";
 import { signedPhotoUrl, verifyPhotoLink, assertPhotoDataUrl } from "../lib/storage.js";
 
+
 const cat = (score, severity) => ({ score, severity, summary: "" });
 const sample = (over = {}) => ({
   categories: {
